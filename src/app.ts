@@ -22,10 +22,10 @@ app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-    console.error(err.stack);
-    res.status(500).json({ msg: 'Something went wrong', error: err.message });
+  console.error(err.stack);
+  res.status(500).json({ msg: "Something went wrong", error: err.message });
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-})  
+  console.log(`Server is running on port ${PORT}`);
+});
