@@ -1,63 +1,147 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import Product from "../models/Product";
+import Category from "../models/Category";
 
-export const createProduct = async (req: Request, res: Response) => {
-    try {
-        const {description, price, stock, name } = req.body;
-        const product = new Product({
-            description,
-            price,
-            stock,
-            name
-        })
+// Create a new product
+export const createProduct = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { name, description, price, images, category } = req.body;
 
-        await product.save();
-        res.status(201).json(product);
-    } catch (error) {
-        console.log(error);
+    const categoryExists = await Category.findById(category);
+    if (!categoryExists) {
+      return res.status(400).json({ msg: "Invalid category" });
     }
-}
 
-export const getAllProduct = async (req: Request, res: Response) => {
-    try {
-        const products = await Product.find();
+    const product = new Product({ name, description, price, images, category });
+    await product.save();
 
-        products.length > 0
-            ? res.json(products)
-            : res.status(404).json({msg: "No products found"});
-    } catch (error) {
-        console.log(error);
+    res.status(201).json(product);
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+// Get all products with search, filter, and pagination
+export const getProducts = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { search, category, page = 1, limit = 10 } = req.query;
+
+    const query: any = {};
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
     }
-}
-
-export const updateProduct = async (req: Request, res: Response) => {
-    try {
-        const {description, price, stock, name } = req.body;
-        const updateProduct = await Product.findByIdAndUpdate(
-            { _id: req.params.id }, 
-            {
-            description,
-            price,
-            stock,
-            name
-        })
-
-        updateProduct
-            ? res.json(updateProduct)
-            : res.status(404).json({msg: "Product not found"});
-    } catch (error) {
-        console.log(error);
+    if (category) {
+      query.category = category;
     }
-}
 
-export const deleteProduct = async (req: Request, res: Response) => {
-    try {
-        const deleteProduct = await Product.findByIdAndDelete({ _id : req.params.id});
+    const products = await Product.aggregate([
+      { $match: query },
+      {
+        $lookup: {
+          from: "categories",
+          localField: "category",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      { $unwind: "$category" },
+      { $skip: (Number(page) - 1) * Number(limit) },
+      { $limit: Number(limit) },
+    ]);
 
-        deleteProduct
-            ? res.json({msg: "Product deleted"})
-            : res.status(404).json({msg: "Product not found"});
-    } catch (error) {
-        console.log(error);
+    const total = await Product.countDocuments(query);
+
+    res.status(200).json({
+      products,
+      total,
+    });
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+// Get a single product by ID
+export const getProductById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const product = await Product.findById(req.params.id).populate("category");
+    if (!product) {
+      return res.status(404).json({ msg: "Product not found" });
     }
-}
+    res.status(200).json(product);
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+// Update an existing product
+export const updateProduct = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { name, description, price, images, category } = req.body;
+
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ msg: "Product not found" });
+    }
+
+    if (category) {
+      const categoryExists = await Category.findById(category);
+      if (!categoryExists) {
+        return res.status(400).json({ msg: "Invalid category" });
+      }
+    }
+
+    product.name = name || product.name;
+    product.description = description || product.description;
+    product.price = price || product.price;
+    product.images = images || product.images;
+    product.category = category || product.category;
+
+    await product.save();
+    res.status(200).json(product);
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+// Delete a product
+export const deleteProduct = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ msg: "Product not found" });
+    }
+
+    await product.deleteOne();
+    res.status(200).json({ msg: "Product deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
