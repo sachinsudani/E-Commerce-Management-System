@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
 import productRoutes from "./routes/product.routes";
+import categoryRoutes from "./routes/category.routes";
 
 const app = express();
 
@@ -19,7 +20,8 @@ db.on("error", console.error.bind(console, "connection error"));
 
 app.use("/api/users/auth", authRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/products", productRoutes);
+app.use("/api/category", categoryRoutes);
+app.use("/api/product", productRoutes);
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error(err.stack);

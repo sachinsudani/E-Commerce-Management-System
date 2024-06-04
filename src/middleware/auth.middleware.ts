@@ -15,7 +15,7 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
         return res.status(401).json({msg: "Not authorized"});
     }
 
-    req.params.id = (decoded as {id : string}).id;
+    req.params.userId = (decoded as {id : string}).id;
 
     next();
 }
